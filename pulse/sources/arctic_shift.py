@@ -33,6 +33,25 @@ class RateLimited(Exception):
     pass
 
 
+RETRY_STATUSES = (422, 500, 502, 503, 504)  # 422 = "query timed out / busy" on this service; it is transient
+RETRY_WAITS = (4, 10)
+
+
+def _get(params):
+    """One API call, retried when the service is busy. 429 stops the source for this run."""
+    for attempt in range(len(RETRY_WAITS) + 1):
+        resp = requests.get(API, params=params, headers=HEADERS, timeout=30)
+        if resp.status_code == 429:
+            raise RateLimited(f"HTTP 429 (reset in {resp.headers.get('X-RateLimit-Reset', '?')}s)")
+        if resp.status_code not in RETRY_STATUSES:
+            break
+        if attempt < len(RETRY_WAITS):
+            time.sleep(RETRY_WAITS[attempt])
+    if resp.status_code >= 400:
+        raise RuntimeError(f"HTTP {resp.status_code} after retries: {resp.text[:160].strip()}")
+    return resp
+
+
 def fetch_subreddit(subreddit, after_ts, max_pages=2, delay=1.0):
     """Posts in r/<subreddit> created after `after_ts` (epoch seconds), newest first, up to max_pages*100."""
     posts, before = [], None
@@ -42,10 +61,7 @@ def fetch_subreddit(subreddit, after_ts, max_pages=2, delay=1.0):
         params = {"subreddit": subreddit, "after": int(after_ts), "limit": 100, "sort": "desc"}
         if before:
             params["before"] = int(before)
-        resp = requests.get(API, params=params, headers=HEADERS, timeout=30)
-        if resp.status_code == 429:
-            raise RateLimited(f"HTTP 429 (reset in {resp.headers.get('X-RateLimit-Reset', '?')}s)")
-        resp.raise_for_status()
+        resp = _get(params)
         body = resp.json()
         if isinstance(body, dict) and body.get("error"):
             raise RuntimeError(str(body["error"])[:200])

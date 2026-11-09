@@ -258,6 +258,23 @@ def test_arctic_shift_pages_back_and_stops_on_rate_limit(monkeypatch):
         arctic_shift.fetch_subreddit("docs", 0)
 
 
+def test_arctic_shift_retries_busy_responses(monkeypatch):
+    class Resp:
+        def __init__(self, status):
+            self.status_code, self.headers, self.text = status, {}, "Timeout. Maybe slow down a bit"
+
+        def json(self):
+            return {"data": [{"id": "a1", "created_utc": 1}], "error": None}
+    waits, seq = [], [Resp(422), Resp(503), Resp(200)]
+    monkeypatch.setattr(arctic_shift.time, "sleep", lambda s: waits.append(s))
+    monkeypatch.setattr(arctic_shift.requests, "get", lambda *a, **k: seq.pop(0))
+    assert len(arctic_shift.fetch_subreddit("docs", 0, max_pages=1)) == 1 and waits == [4, 10]
+    monkeypatch.setattr(arctic_shift.requests, "get", lambda *a, **k: Resp(422))
+    import pytest
+    with pytest.raises(RuntimeError, match="422 after retries: Timeout"):
+        arctic_shift.fetch_subreddit("docs", 0, max_pages=1)
+
+
 def test_arctic_shift_without_subreddits_is_skipped():
     c = make_client(sources={"arctic_shift": {"enabled": True}})
     assert arctic_shift.collect(c, clock(), NOW) == ([], [])
