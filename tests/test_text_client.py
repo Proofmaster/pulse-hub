@@ -58,7 +58,7 @@ def test_html_to_text():
 
 # ---------- profiles ----------
 def test_profile_defaults_and_query_resolution(client):
-    assert client.slack_secret == "SLACK_WEBHOOK_TINYDOC"
+    assert client.slack_secret == "SLACK_WEBHOOK_TINYDOC"  # local-run env var name
     assert client.alert_on == ["mention", "Prime Target"]
     assert client.queries_for("web", "intent") == ['site:reddit.com "compress doc"']
     assert client.f5bot_keywords() == ["tinydoc", "tiny doc"]  # defaults to the brand terms

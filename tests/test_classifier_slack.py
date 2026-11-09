@@ -124,7 +124,7 @@ def test_alert_on_is_configurable(client):
 
 
 def test_dispatch_uses_the_clients_own_webhook_and_dedupes(client, monkeypatch):
-    monkeypatch.setenv("PULSE_SECRETS", json.dumps({"SLACK_WEBHOOK_TINYDOC": "https://hooks.example/tiny"}))
+    monkeypatch.setenv("SLACK_WEBHOOKS", json.dumps({"tinydoc": "https://hooks.example/tiny"}))
     sent, got = slack.SentLog(), []
     items = [lead("Prime Target", url=f"https://www.reddit.com/r/a/comments/1z{i}/t/") for i in range(5)]
     sender = lambda l, w, n: got.append((w, n)) or True  # noqa: E731
@@ -137,20 +137,37 @@ def test_dispatch_uses_the_clients_own_webhook_and_dedupes(client, monkeypatch):
 
 
 def test_missing_webhook_skips_without_marking_sent(client, monkeypatch):
-    monkeypatch.delenv("PULSE_SECRETS", raising=False)
+    monkeypatch.delenv("SLACK_WEBHOOKS", raising=False)
     monkeypatch.delenv("SLACK_WEBHOOK_TINYDOC", raising=False)
     sent = slack.SentLog()
     assert slack.dispatch_alerts([lead("Prime Target")], sent, client, delay=0) == 0
     assert not sent.has(lead("Prime Target"))
 
 
-def test_secret_lookup_prefers_env_then_json_blob(monkeypatch):
-    monkeypatch.setenv("PULSE_SECRETS", json.dumps({"A": "from-json"}))
-    assert config.secret("A") == "from-json"
-    monkeypatch.setenv("A", "from-env")
-    assert config.secret("A") == "from-env"
-    monkeypatch.setenv("PULSE_SECRETS", "not json")
-    assert config.secret("B") is None and config.secret("") is None
+def test_webhook_lookup_env_override_then_json_secret(monkeypatch, capsys):
+    monkeypatch.delenv("SLACK_WEBHOOK_A", raising=False)
+    monkeypatch.setenv("SLACK_WEBHOOKS", json.dumps({"a": " https://hooks.example/a ", "b": ""}))
+    assert config.slack_webhook("a", "SLACK_WEBHOOK_A") == "https://hooks.example/a"
+    assert config.slack_webhook("b") is None and config.slack_webhook("zzz") is None
+    monkeypatch.setenv("SLACK_WEBHOOK_A", "https://local/override")
+    assert config.slack_webhook("a", "SLACK_WEBHOOK_A") == "https://local/override"
+    monkeypatch.setenv("SLACK_WEBHOOKS", "not json")
+    assert config.slack_webhook("x") is None and "not valid JSON" in capsys.readouterr().out
+    monkeypatch.setenv("SLACK_WEBHOOKS", "[1]")
+    assert config.slack_webhook("x") is None
+
+
+def test_webhook_urls_are_masked_in_actions_logs(monkeypatch, capsys):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("SLACK_WEBHOOKS", json.dumps({"a": "https://hooks.example/secret-a"}))
+    config.slack_webhook("a")
+    assert "::add-mask::https://hooks.example/secret-a" in capsys.readouterr().out
+
+
+def test_workflow_never_hands_the_whole_secrets_context_to_the_run():
+    # toJSON(secrets) exposes every secret to every installed package (and GitHub flags it as malicious).
+    wf = (config.ROOT / ".github" / "workflows" / "pulse.yml").read_text()
+    assert "toJSON(secrets)" not in wf.replace(" ", "")
 
 
 def test_payload_is_escaped_and_names_client_and_source():

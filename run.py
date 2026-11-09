@@ -40,7 +40,8 @@ def main(argv=None):
     if args.validate:
         for c in clients:
             sources = [n for n in c.sources if c.enabled(n)]
-            print(f"OK  {c.slug:<20} {c.name}  sources={sources}  slack_secret={c.slack_secret}")
+            slack_on = "on" if config.slack_webhook(c.slug, c.slack_secret) else "off (no webhook)"
+            print(f"OK  {c.slug:<20} {c.name}  sources={sources}  slack={slack_on}")
         print(f"{len(clients)} profile(s) valid.")
         return 0
     if not clients:

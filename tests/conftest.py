@@ -22,7 +22,6 @@ TINYDOC = {
     "examples": [{"text": "Best way to shrink a 30MB doc?", "category": "Prime Target"}],
     "queries": {"brand": ["\"tinydoc\" site:reddit.com"], "intent": ["site:reddit.com \"compress doc\""]},
     "sources": {"web": {"enabled": True, "delay_seconds": 0}, "f5bot": {"enabled": True}},
-    "slack": {"webhook_secret": "SLACK_WEBHOOK_TINYDOC"},
 }
 
 

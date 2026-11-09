@@ -73,9 +73,9 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           F5BOT_MARK_SEEN: ${{ vars.F5BOT_MARK_SEEN || 'true' }}
-          # Per-client secrets (SLACK_WEBHOOK_<SLUG>) are looked up by name, so a new client never needs a
-          # workflow edit. GitHub masks every secret value in the logs.
-          PULSE_SECRETS: ${{ toJSON(secrets) }}
+          # All clients' Slack webhooks in ONE secret: {"<client-slug>": "https://hooks.slack.com/..."}.
+          # (Only the secrets listed here reach the run; client names never appear in this public file.)
+          SLACK_WEBHOOKS: ${{ secrets.SLACK_WEBHOOKS }}
           ONLY_CLIENT: ${{ inputs.client }}
         run: python run.py --clients-dir data-repo/clients --data-dir data-repo/data ${ONLY_CLIENT:+--client "$ONLY_CLIENT"}
 

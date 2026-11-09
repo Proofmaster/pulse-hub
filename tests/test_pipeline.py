@@ -37,8 +37,8 @@ def ai_by_title(mapping, calls=None):
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     delivered = []
-    monkeypatch.setenv("PULSE_SECRETS", json.dumps({"SLACK_WEBHOOK_TINYDOC": "https://hooks.example/tiny",
-                                                    "SLACK_WEBHOOK_ACME": "https://hooks.example/acme"}))
+    monkeypatch.setenv("SLACK_WEBHOOKS", json.dumps({"tinydoc": "https://hooks.example/tiny",
+                                                     "acme": "https://hooks.example/acme"}))
     monkeypatch.setattr(slack, "send_slack_alert", lambda lead, hook, name="": delivered.append((hook, lead)) or True)
     monkeypatch.setattr(slack.time, "sleep", lambda s: None)
     monkeypatch.setattr(classifier.time, "sleep", lambda s: None)
@@ -188,8 +188,7 @@ def write_clients(tmp_path):
     d.mkdir()
     (d / "tinydoc.json").write_text(json.dumps(TINYDOC))
     acme = {**TINYDOC, "name": "Acme", "brand": {"terms": ["acme invoicing"]},
-            "queries": {"brand": ['"acme invoicing" site:reddit.com'], "intent": []},
-            "slack": {"webhook_secret": "SLACK_WEBHOOK_ACME"}}
+            "queries": {"brand": ['"acme invoicing" site:reddit.com'], "intent": []}}
     (d / "acme.json").write_text(json.dumps(acme))
     return d
 

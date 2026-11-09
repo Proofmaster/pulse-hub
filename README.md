@@ -17,7 +17,8 @@ F5Bot, Google Alerts, and optionally Serper's free credits and Apify's free mont
 | `pulse-hub` (this one) | **public** (so GitHub Actions minutes are unlimited) | code, prompt, workflow, a **fictional** example profile |
 | `pulse-hub-data` | **private** | `clients/<slug>.json` profiles and `data/<slug>/results.json` results |
 
-No client name or client data ever goes into this repo. A test (`test_no_webhook_or_real_client_data_in_the_public_repo`)
+No client name, client data or secret ever goes into this repo, and the workflow passes the run only the secrets it
+names (never the whole secrets context). A test (`test_no_webhook_or_real_client_data_in_the_public_repo`)
 guards that.
 
 ## How a run works
@@ -53,7 +54,7 @@ for what the client does), **Brand Engagement** (praise), **Monitor** (neutral m
    | `DATA_REPO_SSH_KEY` or `DATA_REPO_TOKEN` | **required** (one of them) | from step 1 |
    | `GEMINI_API_KEY` | **required** | free at aistudio.google.com |
    | `GROQ_API_KEY`, `OPENROUTER_API_KEY` | recommended | free fallbacks when Gemini's quota runs out |
-   | `SLACK_WEBHOOK_<SLUG>` | per client | e.g. `SLACK_WEBHOOK_ACME`; no secret = no alerts for that client |
+   | `SLACK_WEBHOOKS` | for alerts | **one** secret for all clients, JSON keyed by client slug: `{"acme": "<Slack webhook URL>"}`. A client missing from it gets no alerts |
    | `EMAIL_USER`, `EMAIL_PASS` | for F5Bot | the inbox F5Bot e-mails (Gmail: use an *app password*) |
    | `SERPER_API_KEY` | optional | Google results; 2,500 free credits once |
    | `APIFY_API_TOKEN` | optional | LinkedIn source |
@@ -68,7 +69,8 @@ for what the client does), **Brand Engagement** (praise), **Monitor** (neutral m
 1. Copy `examples/acme.json` to `pulse-hub-data/clients/<slug>.json`. The slug is lowercase letters, digits and
    dashes, and becomes the file and secret name.
 2. Fill it in (fields below). Check it with `python run.py --validate --clients-dir ../pulse-hub-data/clients`.
-3. Add the `SLACK_WEBHOOK_<SLUG>` secret here.
+3. Add the client to the `SLACK_WEBHOOKS` secret. GitHub never shows a secret again, so keep the JSON in your
+   password manager, add the new line there, and paste the whole thing back as the new value.
 4. Add the profile's `sources.f5bot.keywords` to your F5Bot account (f5bot.com, free).
 5. Optional: create Google Alerts (google.com/alerts → *Show options → Deliver to: RSS feed*), e.g.
    `"acme invoicing" site:reddit.com`, and paste each feed URL into `sources.google_alerts.feeds`.
@@ -91,7 +93,7 @@ The first run on a new client never floods Slack with history. Only threads it h
 | `prompt_rules` | extra one-line rules for the classifier |
 | `queries.brand` / `queries.intent` | search queries shared by the search sources. Use `site:reddit.com` or `site:quora.com` |
 | `sources.<name>` | `enabled`, plus source options; `min_hours_between_runs` throttles a source (to save credits) |
-| `slack.webhook_secret`, `slack.alert_on` | which secret holds the webhook; alert on `mention` and/or any categories |
+| `slack.alert_on` | alert on `mention` and/or any categories (webhook: `SLACK_WEBHOOKS["<slug>"]`) |
 | `active` | `false` pauses the client |
 
 ### Sources
@@ -131,7 +133,7 @@ Dates carry a `date_confidence`:
    - Disable the old repo's workflows (Actions → each workflow → *Disable workflow*).
    - Re-import its latest `results.json`, so nothing it already alerted is alerted again:
      `python tools/import_legacy.py old/results.json ../pulse-hub-data/data/<slug>/results.json`.
-   - Then add `EMAIL_USER`, `EMAIL_PASS`, `SERPER_API_KEY`, `APIFY_API_TOKEN` and `SLACK_WEBHOOK_<SLUG>` here.
+   - Then add `EMAIL_USER`, `EMAIL_PASS`, `SERPER_API_KEY` and `APIFY_API_TOKEN` here, and add the client to `SLACK_WEBHOOKS`.
 
 ## Development
 

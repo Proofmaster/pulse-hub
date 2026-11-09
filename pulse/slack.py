@@ -2,7 +2,7 @@
 
 Default policy (`slack.alert_on` in the profile): every brand mention (any source) and every Prime Target.
 Leads that still await AI classification and do not mention the brand wait for the next run.
-Webhooks come from secrets (`SLACK_WEBHOOK_<SLUG>` by default) and are never stored in a repo.
+Webhooks come from the SLACK_WEBHOOKS secret (JSON keyed by client slug) and are never stored in a repo.
 """
 import time
 
@@ -122,9 +122,9 @@ class SentLog:
 def dispatch_alerts(leads, sent, client, max_per_run=None, delay=1.1, sender=None):
     """Alert on qualifying, not-yet-sent leads for one client. Returns the number delivered."""
     max_per_run = max_per_run or config.MAX_SLACK_PER_RUN
-    webhook = config.secret(client.slack_secret)
+    webhook = config.slack_webhook(client.slug, client.slack_secret)
     if not webhook:
-        print(f"[slack:{client.slug}] secret {client.slack_secret} is not set - skipping alerts.")
+        print(f"[slack:{client.slug}] no webhook (add \"{client.slug}\" to the SLACK_WEBHOOKS secret) - skipping alerts.")
         return 0
     sender = sender or send_slack_alert
     delivered = 0

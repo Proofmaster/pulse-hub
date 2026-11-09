@@ -96,7 +96,8 @@ class Client:
                 raise ProfileError("google_alerts feed 'kind' must be 'brand' or 'intent'")
 
         slack = data.get("slack") or {}
-        self.slack_secret = str(slack.get("webhook_secret") or f"SLACK_WEBHOOK_{slug.upper().replace('-', '_')}")
+        # Env var for local runs only; in GitHub Actions the webhook comes from SLACK_WEBHOOKS[slug].
+        self.slack_secret = str(slack.get("webhook_env") or f"SLACK_WEBHOOK_{slug.upper().replace('-', '_')}")
         self.alert_on = _str_list(slack.get("alert_on", ALERT_DEFAULT), "slack.alert_on")
 
     # ---- helpers -------------------------------------------------------

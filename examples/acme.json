@@ -46,5 +46,5 @@
     "linkedin": {"enabled": false, "keyword": "Acme Invoicing", "max_results": 15, "min_hours_between_runs": 24}
   },
 
-  "slack": {"webhook_secret": "SLACK_WEBHOOK_ACME", "alert_on": ["mention", "Prime Target"]}
+  "slack": {"alert_on": ["mention", "Prime Target"]}
 }
