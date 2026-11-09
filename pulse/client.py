@@ -92,8 +92,8 @@ class Client:
         for feed in self.sources["google_alerts"].get("feeds") or []:
             if not isinstance(feed, dict) or not str(feed.get("url", "")).startswith("http"):
                 raise ProfileError("each sources.google_alerts.feeds entry needs a 'url'")
-            if feed.get("kind", "intent") not in ("brand", "intent"):
-                raise ProfileError("google_alerts feed 'kind' must be 'brand' or 'intent'")
+            if feed.get("kind", "auto") not in ("auto", "brand", "intent"):
+                raise ProfileError("google_alerts feed 'kind' must be 'auto', 'brand' or 'intent'")
 
         slack = data.get("slack") or {}
         # Env var for local runs only; in GitHub Actions the webhook comes from SLACK_WEBHOOKS[slug].

@@ -305,3 +305,10 @@ def test_arctic_shift_record_wins_over_a_search_snippet_for_the_same_thread(env,
     assert len(out["hot_leads"]) == 1 and lead["source"] == "arctic_shift" and lead["text"] == "Full post text here"
     assert lead["date_confidence"] == "exact"
     assert out["query_stats"]["arctic_shift|r/docs"]["new_qualified"] == 1
+
+
+def test_an_alert_feed_with_nothing_new_is_not_flagged_as_blocked():
+    ex = [{"source": "google_alerts", "kind": "intent", "query": "u", "results": 0, "raw": 0, "label": "x"}]
+    assert pipeline.source_health({}, ex, "t")["google_alerts"]["status"] == "ok"
+    stats = pipeline.update_query_stats({}, ex, [], set(), "t")
+    assert stats["google_alerts|u"]["label"] == "x"

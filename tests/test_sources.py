@@ -79,6 +79,7 @@ def test_serper_uses_its_own_short_query_list_and_page_dates(monkeypatch):
 
 ALERT_FEED = b"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Google Alert - &quot;tinydoc&quot; site:reddit.com</title>
   <entry>
     <title type="html">Is &lt;b&gt;Tinydoc&lt;/b&gt; down?</title>
     <link href="https://www.google.com/url?rct=j&amp;sa=t&amp;url=https://www.reddit.com/r/docs/comments/%s/down/&amp;ct=ga"/>
@@ -98,11 +99,14 @@ def test_google_alerts_feed_is_parsed_and_unwrapped(monkeypatch):
     feed = ALERT_FEED.replace(b"%s", b"zzzzzz1")
     rows = google_alerts.parse(feed)
     assert rows[0]["title"] == "Is <b>Tinydoc</b> down?" and rows[0]["date"] == "2026-11-09T08:00:00Z"
-    monkeypatch.setattr(google_alerts, "fetch", lambda url: rows)
+    assert google_alerts.feed_label(feed) == '"tinydoc" site:reddit.com'
+    monkeypatch.setattr(google_alerts, "fetch", lambda url: (google_alerts.feed_label(feed), rows))
     c = make_client(sources={"google_alerts": {"enabled": True, "feeds": [
-        {"url": "https://www.google.com/alerts/feeds/1/abc", "kind": "brand"}]}})
+        {"url": "https://www.google.com/alerts/feeds/1/abc"}]}})  # kind defaults to "auto"
     leads, executed = google_alerts.collect(c, clock(), NOW)
     reddit, quora = leads
+    assert reddit["type"] == "Mention" and quora["type"] == "Lead"  # decided per item by the brand matcher
+    assert executed[0]["label"] == '"tinydoc" site:reddit.com'
     assert reddit["url"] == "https://www.reddit.com/r/docs/comments/zzzzzz1/down/"
     assert reddit["title"] == "Is Tinydoc down?" and reddit["text"] == "Tinydoc keeps failing today"
     # no clock anchors -> the alert time (an upper bound) is used, labelled as such

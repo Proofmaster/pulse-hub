@@ -291,7 +291,7 @@ function renderSources(){
     <b>qualified</b> = of those, PR Support / Prime Target / Brand Engagement. Prune rows that stay at 0 for a couple of weeks.</p>
     <div class="tablewrap"><table><tr><th>Source</th><th>Query / subreddit</th><th class="num">Runs</th><th class="num">Results</th>
     <th class="num">New</th><th class="num">Qualified</th><th class="num">Hit rate</th><th>Last qualified</th><th>Errors</th></tr>${
-    rows.map(r => `<tr><td>${esc(r.source)}</td><td>${esc(r.query)}</td><td class="num">${r.runs || 0}</td><td class="num">${r.results || 0}</td>
+    rows.map(r => `<tr><td>${esc(r.source)}</td><td title="${esc(r.query)}">${esc(r.label || r.query)}</td><td class="num">${r.runs || 0}</td><td class="num">${r.results || 0}</td>
       <td class="num">${r.new || 0}</td><td class="num"><b>${r.new_qualified || 0}</b></td><td class="num">${pct(r)}</td>
       <td>${r.last_qualified_at ? ago(r.last_qualified_at) : "—"}</td>
       <td title="${esc(r.last_error || "")}">${r.errors ? esc(r.errors + " · " + (r.last_error || "").slice(0, 60)) : ""}</td></tr>`).join("")}</table></div>`

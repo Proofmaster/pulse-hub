@@ -80,6 +80,8 @@ def update_query_stats(stats, executed, found, prev_keys, now_iso):
         k = f"{ex['source']}|{ex['query']}"
         s = stats.setdefault(k, {"source": ex["source"], "kind": ex["kind"], "query": ex["query"], "runs": 0,
                                  "results": 0, "new": 0, "new_qualified": 0})
+        if ex.get("label"):
+            s["label"] = ex["label"]
         if ex.get("error"):
             s["errors"] = s.get("errors", 0) + 1
             s["last_error"], s["last_error_at"] = ex["error"], now_iso
@@ -98,6 +100,9 @@ def update_query_stats(stats, executed, found, prev_keys, now_iso):
     return stats
 
 
+QUIET_IS_NORMAL = {"google_alerts", "linkedin"}
+
+
 def source_health(prev_health, executed, now_iso):
     """Per source: how many queries ran / failed this run. A source where *every* query failed is
     flagged loudly, so a dead free source never looks like a quiet day."""
@@ -111,6 +116,8 @@ def source_health(prev_health, executed, now_iso):
         raw = sum(r.get("raw", r["results"]) for r in rows)
         if failed and len(failed) == len(rows):
             status, why = "down", f"failed on every query: {failed[-1]['error'][:200]}"
+        elif rows and raw == 0 and name in QUIET_IS_NORMAL:
+            status, why = "ok", ""  # e.g. a Google Alert with nothing new: normal, not a blocked source
         elif rows and raw == 0:
             status, why = "empty", "returned nothing for every query (engines may be blocking this server)"
         elif rows and results == 0:
