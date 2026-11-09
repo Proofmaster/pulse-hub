@@ -9,6 +9,7 @@ import os
 import sys
 import traceback
 from datetime import datetime, timezone
+from pathlib import Path
 
 from pulse import config, store
 from pulse.client import ProfileError, load_clients
@@ -20,6 +21,8 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--clients-dir", default=os.environ.get("PULSE_CLIENTS_DIR", "clients"))
     p.add_argument("--data-dir", default=os.environ.get("PULSE_DATA_DIR", "data"))
+    p.add_argument("--feedback-dir", default=None,
+                   help="dashboard feedback (default: 'feedback' next to the data dir)")
     p.add_argument("--client", action="append", help="only this client slug (repeatable)")
     p.add_argument("--validate", action="store_true", help="validate profiles and exit")
     return p.parse_args(argv)
@@ -49,6 +52,7 @@ def main(argv=None):
         return 1 if profile_errors else 0
 
     now_iso = datetime.now(timezone.utc).isoformat()
+    feedback_dir = args.feedback_dir or str(Path(args.data_dir).resolve().parent / "feedback")
     f5_leads, f5_ids = [], []
     if any(c.enabled("f5bot") for c in clients):
         f5_leads, f5_ids = f5bot.fetch(now_iso)
@@ -59,7 +63,7 @@ def main(argv=None):
         print(f"===== {client.slug} =====")
         try:
             run_client(client, store.results_path(args.data_dir, client.slug), now_iso,
-                       f5bot_leads=routed.get(client.slug, []))
+                       f5bot_leads=routed.get(client.slug, []), feedback_dir=feedback_dir)
         except Exception:  # noqa: BLE001 - one broken client must not block the others
             traceback.print_exc()
             failed.append(client.slug)

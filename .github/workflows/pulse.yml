@@ -16,17 +16,23 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read   # this repo is only read; results go to the private data repo via DATA_REPO_TOKEN
+  contents: read   # this repo is only read; results go to the private data repo (deploy key / token)
 
 jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: write   # only for "Keep the schedule alive" below
+    outputs:
+      dashboard: ${{ steps.dash.outputs.built }}
     env:
       DATA_REPO: ${{ vars.DATA_REPO || 'Proofmaster/pulse-hub-data' }}
       # Access to the data repo: a deploy key (DATA_REPO_SSH_KEY, preferred) or a fine-grained token (DATA_REPO_TOKEN).
       HAS_DATA_SSH_KEY: ${{ secrets.DATA_REPO_SSH_KEY != '' }}
       HAS_DATA_TOKEN: ${{ secrets.DATA_REPO_TOKEN != '' }}
+      HAS_DASHBOARD: ${{ secrets.DASHBOARD_PASSPHRASE != '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -99,3 +105,42 @@ jobs:
           done
           echo "::error::Could not push results after 5 attempts"
           exit 1
+
+      - name: Build the dashboard (encrypted)
+        id: dash
+        if: ${{ !cancelled() && env.HAS_DASHBOARD == 'true' && (steps.data_ssh.outcome == 'success' || steps.data_token.outcome == 'success') }}
+        env:
+          DASHBOARD_PASSPHRASE: ${{ secrets.DASHBOARD_PASSPHRASE }}
+        run: |
+          python tools/build_dashboard.py --clients-dir data-repo/clients --data-dir data-repo/data --out site
+          echo "built=true" >> "$GITHUB_OUTPUT"
+
+      - name: Package the dashboard for GitHub Pages
+        if: ${{ !cancelled() && steps.dash.outputs.built == 'true' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Keep the schedule alive
+        # GitHub pauses scheduled workflows in public repos after 60 days without commits, and results are
+        # committed to the data repo, not here. Re-enabling the (already enabled) workflow resets that timer.
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/pulse.yml/enable" && echo "Schedule kept alive."
+
+  deploy-dashboard:
+    needs: run
+    if: ${{ !cancelled() && needs.run.outputs.dashboard == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -63,6 +63,25 @@ for what the client does), **Brand Engagement** (praise), **Monitor** (neutral m
    (while another tool reads the same inbox), and `GEMINI_MODEL` / `GROQ_MODEL` / `OPENROUTER_MODEL` (when a free
    model is retired).
 3. Actions → **Pulse** → *Run workflow*. Results appear in `pulse-hub-data/data/<slug>/results.json`.
+4. **Dashboard** (optional, free; see below): add the secret `DASHBOARD_PASSPHRASE` (5+ random words), then
+   Settings → **Pages** → *Build and deployment* → Source: **GitHub Actions**. After the next run, the dashboard is
+   at `https://<owner>.github.io/pulse-hub/`.
+
+## Dashboard
+
+A single static page (`dashboard/index.html`) on GitHub Pages, rebuilt after every run:
+
+- **Act now** (PR Support, Prime Target and Brand Engagement from the live tabs), **Mentions**, **Leads**, **Vault**
+  (every qualified thread, searchable), **Sources** (which queries and subreddits actually find leads), **Feedback**.
+- **Private by design.** The page is public, but the data is gzipped and encrypted with AES-256-GCM (key from
+  `DASHBOARD_PASSPHRASE` via PBKDF2-SHA256, 310k rounds). Your browser decrypts it; the passphrase never leaves it.
+  No GitHub token is needed. Anyone without the passphrase sees only a lock screen, so pick a long passphrase.
+- **👍/👎 teaches the AI.** Grade cards (with 👎, pick the correct category). Then go to Feedback → *Save to GitHub*,
+  which opens GitHub's own new-file page in `pulse-hub-data`, pre-filled. Click *Commit changes*. The next run shows
+  your call on the cards and adds your latest reviews to that client's prompt as examples.
+
+The run also keeps the schedule alive: GitHub pauses scheduled workflows in public repos after 60 days without
+commits, and Pulse commits to the data repo, so each run re-enables its own workflow to reset that timer.
 
 ## Adding a client
 
@@ -152,7 +171,7 @@ The tests run every source and the whole pipeline with network and AI mocked, on
 ## Roadmap
 
 1. ~~Engine: client profiles, templated prompt, free sources, one workflow for all clients~~ (this version)
-2. Dashboard: client switcher, reads the private data with your GitHub token, 👍/👎 feedback stored per client
+2. ~~Dashboard: client switcher, encrypted data on GitHub Pages, 👍/👎 feedback that trains the classifier~~ (done)
 3. Onboarding wizard: website + description → AI-drafted profile, F5Bot keyword list and Google Alerts list, plus a
    7-day back-test before going live
 4. Quora tab: digest e-mail ingestion, and ranking by search value instead of freshness

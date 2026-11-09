@@ -98,11 +98,14 @@ def _join(items, sep="; "):
     return sep.join(items)
 
 
-def render_client_prompt(client, template=None):
-    """Fill the client placeholders; {{SOURCE_NOTE}} and {{POSTS}} are left for build_prompt."""
+def render_client_prompt(client, template=None, reviewed_examples=()):
+    """Fill the client placeholders; {{SOURCE_NOTE}} and {{POSTS}} are left for build_prompt.
+    `reviewed_examples` are real posts a human graded in the dashboard (see pulse/feedback.py)."""
     template = template or load_prompt_template()
     terms = client.brand_terms + client.ambiguous_terms
-    examples = "\n".join(f'- "{ex["text"]}" -> {ex["category"]}' for ex in client.examples) or "- (none)"
+    lines = [f'- "{ex["text"]}" -> {ex["category"]}' for ex in client.examples]
+    lines += [f'- "{ex["text"]}" -> {ex["category"]}   (reviewed by the team)' for ex in reviewed_examples]
+    examples = "\n".join(lines) or "- (none)"
     rules = "".join(f"\nRULE: {r}" for r in client.prompt_rules)
     values = {
         "{{BRAND}}": client.name,

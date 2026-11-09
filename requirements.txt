@@ -5,3 +5,4 @@ ddgs>=9.5
 google-genai
 groq
 apify-client
+cryptography>=42

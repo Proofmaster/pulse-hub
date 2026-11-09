@@ -4,7 +4,7 @@ Shared work (the F5Bot inbox) is done once in run.py and handed in already route
 """
 from datetime import datetime, timezone
 
-from . import config, store
+from . import config, feedback, store
 from .classifier import classify_items, render_client_prompt
 from .dates import RedditIdClock, is_within_hours, to_ts
 from .leads import build_known_index, dedupe, is_f5bot, is_linkedin, key_of, merge_by_key, reuse_classification
@@ -127,9 +127,34 @@ def source_health(prev_health, executed, now_iso):
     return health
 
 
+def configured_queries(client):
+    """{"source|query"} for everything the profile currently asks for (used to drop stale stats rows)."""
+    keys = set()
+    for name in ("serper", "web"):
+        if client.enabled(name):
+            keys |= {f"{name}|{q}" for kind in ("brand", "intent") for q in client.queries_for(name, kind)}
+    if client.enabled("arctic_shift"):
+        subs = client.source("arctic_shift").get("subreddits") or []
+        keys |= {f"arctic_shift|r/{s.strip().removeprefix('r/')}" for s in subs if s and s.strip()}
+    if client.enabled("google_alerts"):
+        keys |= {f"google_alerts|{f['url']}" for f in client.source("google_alerts").get("feeds") or []}
+    if client.enabled("linkedin"):
+        keys.add(f"linkedin|{client.source('linkedin').get('keyword') or client.name}")
+    return keys
+
+
+def prune_stale(client, query_stats, health):
+    """Forget stats/health for sources and queries the profile no longer uses, so the dashboard stays truthful."""
+    wanted = configured_queries(client)
+    query_stats = {k: v for k, v in query_stats.items() if k in wanted}
+    health = {k: v for k, v in health.items() if client.enabled(k)}
+    return query_stats, health
+
+
 # ---------- main entry ----------
-def run_client(client, results_path, now_iso=None, f5bot_leads=(), providers=None):
+def run_client(client, results_path, now_iso=None, f5bot_leads=(), providers=None, feedback_dir=None):
     now_iso = now_iso or datetime.now(timezone.utc).isoformat()
+    reviews = feedback.load(feedback_dir, client.slug)
     prev = store.load(results_path, now_iso, client.slug)
     clock = seed_clock(prev)
     prev_colls = (prev.get("archive"), prev.get("hot_leads"), prev.get("brand_alerts"), prev.get("f5bot_leads"))
@@ -197,7 +222,8 @@ def run_client(client, results_path, now_iso=None, f5bot_leads=(), providers=Non
     for item in pool:
         reuse_classification(item, known)  # known threads cost no AI quota
     classified, pending = classify_items(pool, platform_of=lambda it: it.get("platform", "reddit"),
-                                         providers=providers, template=render_client_prompt(client))
+                                         providers=providers,
+                                         template=render_client_prompt(client, reviewed_examples=feedback.prompt_examples(reviews)))
     print(f"[{client.slug}] AI: {classified} classified, {pending} pending (retried next run).")
     by_key = {key_of(x): x for x in pool}
     for lead in found:  # cross-source duplicates share the winner's verdict (for query stats)
@@ -218,6 +244,10 @@ def run_client(client, results_path, now_iso=None, f5bot_leads=(), providers=Non
     candidates.sort(key=lambda x: CATEGORY_PRIORITY.get(x.get("action_category"), 9))
     delivered = dispatch_alerts(candidates, sent, client)
 
+    stamped = feedback.apply((live_brand, live_intent, live_linkedin, f5bot_all, archive), reviews)
+    if reviews:
+        print(f"[{client.slug}] feedback: {len(reviews)} reviewed item(s), {stamped} stored lead(s) stamped.")
+
     output = dict(prev)
     output.update({
         "schema_version": store.SCHEMA_VERSION,
@@ -235,6 +265,7 @@ def run_client(client, results_path, now_iso=None, f5bot_leads=(), providers=Non
         "source_health": source_health(prev.get("source_health"), executed, now_iso),
         "query_stats": update_query_stats(dict(prev.get("query_stats") or {}), executed, found, prev_keys, now_iso),
     })
+    output["query_stats"], output["source_health"] = prune_stale(client, output["query_stats"], output["source_health"])
     store.save(results_path, output)
     summary = {"client": client.slug, "found": len(fetched), "brand": len(live_brand), "intent": len(live_intent),
                "linkedin": len(live_linkedin), "f5bot": len(f5bot_all), "archive": len(archive),

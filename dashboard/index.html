@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Pulse Hub</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#16181d;--muted:#5f6673;--line:#e3e6eb;--accent:#2563eb;--chip:#eef1f5;
+--pr:#e11d48;--pt:#0284c7;--be:#059669;--mo:#7c3aed;--ig:#94a3b8;--warn:#b45309;--ok:#15803d}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#171a21;--ink:#e8eaee;--muted:#9aa3b2;--line:#272c36;
+--accent:#60a5fa;--chip:#222733;--pr:#fb7185;--pt:#38bdf8;--be:#34d399;--mo:#a78bfa;--ig:#64748b;--warn:#fbbf24;--ok:#4ade80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}button,select,input{font:inherit;color:inherit}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.lock{max-width:420px;margin:12vh auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px}
+.lock h1{margin:0 0 6px;font-size:22px}.lock p{color:var(--muted);margin:0 0 16px}
+input[type=password],input[type=search],select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 12px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn:disabled{opacity:.5;cursor:default}
+.err{color:var(--pr);margin-top:10px;min-height:1.2em}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+header h1{font-size:19px;margin:0 8px 0 0}header select{width:auto;min-width:160px}
+.muted{color:var(--muted)}.grow{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--chip);border-radius:999px;padding:2px 10px;font-size:12px;white-space:nowrap}
+.chip.ok{color:var(--ok)}.chip.bad{color:var(--pr)}.chip.warn{color:var(--warn)}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:8px 0 12px;overflow-x:auto}
+nav button{border:0;background:none;padding:9px 12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}.bar input[type=search]{max-width:340px}
+.card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ig);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.card.c-PR{border-left-color:var(--pr)}.card.c-PT{border-left-color:var(--pt)}.card.c-BE{border-left-color:var(--be)}.card.c-MO{border-left-color:var(--mo)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12px;color:var(--muted)}
+.cat{font-weight:700;font-size:12px;padding:1px 8px;border-radius:6px;background:var(--chip)}
+.cat.PR{color:var(--pr)}.cat.PT{color:var(--pt)}.cat.BE{color:var(--be)}.cat.MO{color:var(--mo)}.cat.IG{color:var(--ig)}
+.title{font-weight:600;font-size:15px;margin:6px 0 4px;display:block;text-decoration:none;color:var(--ink)}.title:hover{text-decoration:underline}
+.text{color:var(--muted);margin:0 0 8px;overflow-wrap:anywhere}
+.angle{background:var(--chip);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.actions .btn{padding:4px 10px;font-size:13px}
+.actions select{width:auto;padding:4px 8px;font-size:13px}
+.btn.sel-up{border-color:var(--ok);color:var(--ok)}.btn.sel-down{border-color:var(--pr);color:var(--pr)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600;cursor:pointer}
+td.num,th.num{text-align:right}.tablewrap{overflow-x:auto}
+.empty{color:var(--muted);text-align:center;padding:40px 0}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="lock" class="lock">
+  <h1>Pulse Hub</h1>
+  <p>Enter the dashboard passphrase. The data is encrypted and is decrypted only in this browser.</p>
+  <form id="unlockForm">
+    <input id="pass" type="password" autocomplete="current-password" placeholder="Passphrase" required>
+    <label class="muted" style="display:block;margin:10px 0"><input id="remember" type="checkbox"> Remember on this device</label>
+    <button class="btn primary" id="unlockBtn" type="submit">Unlock</button>
+    <div class="err" id="err"></div>
+  </form>
+</div>
+
+<div id="app" class="wrap hidden">
+  <header>
+    <h1>Pulse Hub</h1>
+    <select id="clientSel" aria-label="Client"></select>
+    <span class="muted" id="updated"></span>
+    <span class="grow"></span>
+    <div class="chips" id="health"></div>
+    <button class="btn" id="reload" title="Load the latest data">↻</button>
+    <button class="btn" id="lockBtn" title="Forget the passphrase on this device">Lock</button>
+  </header>
+  <nav id="tabs"></nav>
+  <div class="bar" id="bar">
+    <input id="q" type="search" placeholder="Search title, text, subreddit…">
+    <label class="muted"><input id="showIgnored" type="checkbox"> show Ignore</label>
+    <span class="grow"></span><span class="muted" id="count"></span>
+  </div>
+  <main id="view"></main>
+</div>
+
+<script>
+"use strict";
+const CATS = ["PR Support", "Prime Target", "Brand Engagement", "Monitor", "Ignore"];
+const CODE = {"PR Support":"PR","Prime Target":"PT","Brand Engagement":"BE","Monitor":"MO","Ignore":"IG"};
+const PRIORITY = {"PR Support":0,"Prime Target":1,"Brand Engagement":2,"Monitor":3,"Ignore":4};
+const TABS = [["act","Act now"],["mentions","Mentions"],["leads","Leads"],["vault","Vault"],["sources","Sources"],["feedback","Feedback"]];
+const LS = {pass:"pulse_pass", client:"pulse_client", tab:"pulse_tab"};
+let DATA = null, CLIENT = null, TAB = "act", VAULT_LIMIT = 60;
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k){ try { localStorage.removeItem(k); } catch {} },
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "#";
+const keyOf = it => it.mention_key || it.thread_key || it.url || "";
+const catOf = it => it.human_category || (it.ai_status === "pending" ? null : it.action_category);
+
+// ---------- decryption (mirror of tools/build_dashboard.py) ----------
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function decrypt(env, pass){
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:b64(env.salt), iterations:env.iter, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64(env.iv)}, key, b64(env.ct));
+  const stream = new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return JSON.parse(await new Response(stream).text());
+}
+async function load(pass){
+  const res = await fetch("data.enc.json?t=" + Date.now(), {cache:"no-store"});
+  if (!res.ok) throw new Error("No data published yet (HTTP " + res.status + ").");
+  try { return await decrypt(await res.json(), pass); }
+  catch (e) { throw new Error("Wrong passphrase, or the data could not be read."); }
+}
+
+async function unlock(pass, remember){
+  $("err").textContent = ""; $("unlockBtn").disabled = true; $("unlockBtn").textContent = "Unlocking…";
+  try {
+    DATA = await load(pass);
+    sessionStorage.setItem(LS.pass, pass);
+    if (remember) store.set(LS.pass, pass);
+    $("lock").classList.add("hidden"); $("app").classList.remove("hidden");
+    initApp();
+  } catch (e) { $("err").textContent = e.message; store.del(LS.pass); }
+  finally { $("unlockBtn").disabled = false; $("unlockBtn").textContent = "Unlock"; }
+}
+$("unlockForm").addEventListener("submit", e => { e.preventDefault(); unlock($("pass").value, $("remember").checked); });
+$("lockBtn").onclick = () => { store.del(LS.pass); try { sessionStorage.removeItem(LS.pass); } catch {} location.reload(); };
+$("reload").onclick = async () => {
+  const pass = sessionStorage.getItem(LS.pass) || store.get(LS.pass, "");
+  try { DATA = await load(pass); selectClient(CLIENT?.slug); } catch (e) { alert(e.message); }
+};
+
+// ---------- app ----------
+function initApp(){
+  const sel = $("clientSel");
+  sel.innerHTML = DATA.clients.map(c => `<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join("");
+  sel.onchange = () => selectClient(sel.value);
+  $("tabs").innerHTML = TABS.map(([id, label]) => `<button data-tab="${id}">${label}</button>`).join("");
+  $("tabs").onclick = e => { const t = e.target.dataset.tab; if (t) { TAB = t; store.set(LS.tab, t); VAULT_LIMIT = 60; render(); } };
+  $("q").oninput = () => { VAULT_LIMIT = 60; render(); };
+  $("showIgnored").onchange = render;
+  TAB = store.get(LS.tab, "act");
+  if (!DATA.clients.length) { $("view").innerHTML = `<div class="empty">No client data yet.</div>`; return; }
+  selectClient(store.get(LS.client, DATA.clients[0].slug));
+}
+function selectClient(slug){
+  CLIENT = DATA.clients.find(c => c.slug === slug) || DATA.clients[0];
+  store.set(LS.client, CLIENT.slug); $("clientSel").value = CLIENT.slug;
+  $("updated").textContent = "updated " + ago(CLIENT.last_updated);
+  $("health").innerHTML = Object.entries(CLIENT.source_health || {}).map(([name, h]) => {
+    const cls = h.status === "ok" ? "ok" : (h.status === "down" || h.status === "empty") ? "bad" : "warn";
+    const tip = [h.status, h.note, h.last_error, "last run " + ago(h.last_run)].filter(Boolean).join(" · ");
+    return `<span class="chip ${cls}" title="${esc(tip)}">${esc(name)}: ${esc(h.status)}</span>`;
+  }).join("");
+  render();
+}
+
+function ago(iso){
+  const t = Date.parse(iso || ""); if (!t) return "—";
+  const s = (Date.now() - t) / 1000;
+  if (s < 90) return "just now"; if (s < 5400) return Math.round(s / 60) + "m ago";
+  if (s < 129600) return Math.round(s / 3600) + "h ago"; return Math.round(s / 86400) + "d ago";
+}
+const approx = it => ["estimated","discovered","unknown"].includes(it.date_confidence) ? "~" : "";
+
+function dedupe(items){
+  const seen = new Set(), out = [];
+  for (const it of items) { const k = keyOf(it); if (k && seen.has(k)) continue; seen.add(k); out.push(it); }
+  return out;
+}
+function matches(it){
+  const q = $("q").value.trim().toLowerCase();
+  if (!$("showIgnored").checked && catOf(it) === "Ignore" && TAB !== "vault") return false;
+  if (!q) return true;
+  return [it.title, it.text, it.subreddit, it.reply_angle, it.serp_query].some(v => String(v || "").toLowerCase().includes(q));
+}
+const byPriority = (a, b) => (PRIORITY[catOf(a)] ?? 9) - (PRIORITY[catOf(b)] ?? 9) || Date.parse(b.post_date || 0) - Date.parse(a.post_date || 0);
+const byDate = (a, b) => Date.parse(b.post_date || b.date_found || 0) - Date.parse(a.post_date || a.date_found || 0);
+
+function itemsFor(tab){
+  const c = CLIENT;
+  if (tab === "act") return dedupe([...c.brand_alerts, ...c.hot_leads, ...c.f5bot_leads])
+    .filter(it => ["PR Support","Prime Target","Brand Engagement"].includes(catOf(it)) && it.human_verdict !== "down").sort(byPriority);
+  if (tab === "mentions") return dedupe([...c.brand_alerts, ...c.f5bot_leads]).sort(byDate);
+  if (tab === "leads") return dedupe(c.hot_leads).sort(byPriority);
+  if (tab === "vault") return dedupe(c.archive).sort(byDate);
+  return [];
+}
+
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b => {
+    const n = b.dataset.tab === "feedback" ? Object.keys(pendingFb()).length : null;
+    b.classList.toggle("on", b.dataset.tab === TAB);
+    b.textContent = TABS.find(t => t[0] === b.dataset.tab)[1] + (n ? ` (${n})` : "");
+  });
+  $("bar").classList.toggle("hidden", TAB === "sources" || TAB === "feedback");
+  if (TAB === "sources") return renderSources();
+  if (TAB === "feedback") return renderFeedback();
+  const all = itemsFor(TAB).filter(matches);
+  const shown = TAB === "vault" ? all.slice(0, VAULT_LIMIT) : all;
+  $("count").textContent = `${all.length} item${all.length === 1 ? "" : "s"}`;
+  $("view").innerHTML = shown.length ? shown.map(card).join("") +
+      (shown.length < all.length ? `<div style="text-align:center"><button class="btn" id="more">Show more</button></div>` : "")
+    : `<div class="empty">Nothing here right now.</div>`;
+  const more = $("more"); if (more) more.onclick = () => { VAULT_LIMIT += 60; render(); };
+}
+
+function card(it){
+  const cat = catOf(it), code = CODE[cat] || "IG", fb = pendingFb()[keyOf(it)];
+  const verdict = fb?.verdict || it.human_verdict;
+  const where = it.platform === "quora" ? "Quora" : it.platform === "linkedin" ? "LinkedIn"
+    : (it.subreddit_name || it.subreddit) ? "r/" + (it.subreddit_name || String(it.subreddit).replace(/ \(F5Bot\)$/, "")) : "Reddit";
+  const src = it.is_f5bot ? "F5Bot" : (it.source || "");
+  const angle = it.reply_angle && it.reply_angle !== "None" && cat !== "Ignore" ? `<div class="angle">💡 ${esc(it.reply_angle)}</div>` : "";
+  const k = esc(keyOf(it));
+  return `<div class="card c-${code}">
+    <div class="meta"><span class="cat ${code}">${esc(cat || "Pending AI")}</span>
+      ${it.human_category ? `<span class="chip" title="Set by the team">reviewed</span>` : ""}
+      <span>${esc(where)}</span><span title="${esc(it.date_confidence || "")}">${approx(it)}${ago(it.post_date)}</span>
+      ${src ? `<span>via ${esc(src)}</span>` : ""}${it.num_comments != null ? `<span>${esc(it.num_comments)} comments</span>` : ""}
+      ${it.posture ? `<span>${esc(it.posture)}</span>` : ""}</div>
+    <a class="title" href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener noreferrer">${esc(it.title || "(no title)")}</a>
+    ${it.text ? `<p class="text">${esc(it.text.slice(0, 420))}${it.text.length > 420 ? "…" : ""}</p>` : ""}
+    ${angle}
+    <div class="actions" data-key="${k}">
+      ${angle ? `<button class="btn" data-act="copy">Copy angle</button>` : ""}
+      <button class="btn ${verdict === "up" ? "sel-up" : ""}" data-act="up" title="Classification is right">👍</button>
+      <button class="btn ${verdict === "down" ? "sel-down" : ""}" data-act="down" title="Classification is wrong">👎</button>
+      ${verdict === "down" ? `<select data-act="cat" aria-label="Correct category"><option value="">Correct category…</option>${
+        CATS.map(c => `<option ${(fb?.category || it.human_category) === c ? "selected" : ""}>${c}</option>`).join("")}</select>` : ""}
+    </div></div>`;
+}
+
+// ---------- feedback (saved to the private data repo through GitHub's own "new file" page) ----------
+const fbKey = () => "pulse_fb_" + CLIENT.slug;
+const pendingFb = () => store.get(fbKey(), {});
+function findItem(key){
+  const c = CLIENT; return [...c.brand_alerts, ...c.hot_leads, ...c.f5bot_leads, ...c.archive].find(it => keyOf(it) === key);
+}
+$("view").addEventListener("click", e => {
+  const btn = e.target.closest("[data-act]"); if (!btn || btn.tagName === "SELECT") return;
+  const key = btn.parentElement.dataset.key, it = findItem(key); if (!it) return;
+  const act = btn.dataset.act;
+  if (act === "copy") { navigator.clipboard?.writeText(it.reply_angle || ""); btn.textContent = "Copied"; return; }
+  const fb = pendingFb();
+  if (fb[key]?.verdict === act) delete fb[key];
+  else fb[key] = {key, url: it.url, title: (it.title || "").slice(0, 160), text: (it.text || "").slice(0, 240),
+    verdict: act, category: act === "up" ? catOf(it) : null, ai_category: it.action_category, at: new Date().toISOString()};
+  store.set(fbKey(), fb); render();
+});
+$("view").addEventListener("change", e => {
+  const s = e.target; if (s.dataset.act !== "cat") return;
+  const key = s.parentElement.dataset.key, fb = pendingFb();
+  if (fb[key]) { fb[key].category = s.value || null; store.set(fbKey(), fb); }
+});
+
+function renderFeedback(){
+  const fb = Object.values(pendingFb());
+  const repo = DATA.data_repo;
+  $("view").innerHTML = `<div class="card">
+    <p style="margin-top:0"><b>${fb.length}</b> review${fb.length === 1 ? "" : "s"} waiting to be saved for <b>${esc(CLIENT.name)}</b>.
+    Saving opens GitHub with the file filled in. Click <b>Commit changes</b> there. The next Pulse run uses your
+    reviews as examples for the AI and shows your category on the cards.</p>
+    <div class="actions"><button class="btn primary" id="saveFb" ${fb.length && repo ? "" : "disabled"}>Save to GitHub</button>
+    <button class="btn" id="clearFb" ${fb.length ? "" : "disabled"}>Clear (after committing)</button></div>
+    ${repo ? "" : `<p class="err">The data repo is unknown: set the DATA_REPO variable in the workflow.</p>`}
+    ${fb.some(x => x.verdict === "down" && !x.category) ? `<p class="muted">Tip: a 👎 with a corrected category teaches the AI more than a bare 👎.</p>` : ""}
+  </div>` + (fb.length ? `<div class="tablewrap"><table><tr><th></th><th>Post</th><th>AI said</th><th>Correct</th></tr>${
+    fb.map(x => `<tr><td>${x.verdict === "up" ? "👍" : "👎"}</td><td><a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a></td>
+      <td>${esc(x.ai_category || "")}</td><td>${esc(x.category || "—")}</td></tr>`).join("")}</table></div>` : "");
+  const save = $("saveFb"); if (save) save.onclick = () => {
+    const ts = new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
+    const body = JSON.stringify({client: CLIENT.slug, items: fb}, null, 1);
+    const url = `https://github.com/${repo}/new/main?filename=${encodeURIComponent(`feedback/${CLIENT.slug}/${ts}.json`)}&value=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener");
+  };
+  const clear = $("clearFb"); if (clear) clear.onclick = () => {
+    if (confirm("Clear these reviews from this browser? Only do this after committing them on GitHub.")) { store.set(fbKey(), {}); render(); }
+  };
+}
+
+// ---------- sources: which queries / subreddits actually find leads ----------
+function renderSources(){
+  const rows = Object.values(CLIENT.query_stats || {});
+  rows.sort((a, b) => (b.new_qualified || 0) - (a.new_qualified || 0) || (b.new || 0) - (a.new || 0) || (b.results || 0) - (a.results || 0));
+  const pct = r => r.new ? Math.round(100 * (r.new_qualified || 0) / r.new) + "%" : "—";
+  $("view").innerHTML = rows.length ? `<p class="muted">Per query or subreddit, since it was added: <b>new</b> = threads seen for the first time,
+    <b>qualified</b> = of those, PR Support / Prime Target / Brand Engagement. Prune rows that stay at 0 for a couple of weeks.</p>
+    <div class="tablewrap"><table><tr><th>Source</th><th>Query / subreddit</th><th class="num">Runs</th><th class="num">Results</th>
+    <th class="num">New</th><th class="num">Qualified</th><th class="num">Hit rate</th><th>Last qualified</th><th>Errors</th></tr>${
+    rows.map(r => `<tr><td>${esc(r.source)}</td><td>${esc(r.query)}</td><td class="num">${r.runs || 0}</td><td class="num">${r.results || 0}</td>
+      <td class="num">${r.new || 0}</td><td class="num"><b>${r.new_qualified || 0}</b></td><td class="num">${pct(r)}</td>
+      <td>${r.last_qualified_at ? ago(r.last_qualified_at) : "—"}</td>
+      <td title="${esc(r.last_error || "")}">${r.errors ? esc(r.errors + " · " + (r.last_error || "").slice(0, 60)) : ""}</td></tr>`).join("")}</table></div>`
+    : `<div class="empty">No query statistics yet.</div>`;
+}
+
+// auto-unlock with a remembered (or this-tab) passphrase
+const saved = (() => { try { return sessionStorage.getItem(LS.pass); } catch { return null; } })() || store.get(LS.pass, "");
+if (saved) unlock(saved, !!store.get(LS.pass, ""));
+</script>
+</body>
+</html>
