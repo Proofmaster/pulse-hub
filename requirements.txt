@@ -1,0 +1,7 @@
+requests>=2.31
+dateparser>=1.2
+beautifulsoup4>=4.12
+ddgs>=9.5
+google-genai
+groq
+apify-client

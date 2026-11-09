@@ -1,0 +1,89 @@
+name: Pulse
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'   # every 6h (off the hour: scheduled runs at :00 are often delayed)
+  workflow_dispatch:
+    inputs:
+      client:
+        description: 'Only this client slug (empty = every active client)'
+        required: false
+        default: ''
+
+# One writer at a time for the data repo.
+concurrency:
+  group: pulse-data-writer
+  cancel-in-progress: false
+
+permissions:
+  contents: read   # this repo is only read; results go to the private data repo via DATA_REPO_TOKEN
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATA_REPO: ${{ vars.DATA_REPO || 'Proofmaster/pulse-hub-data' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check setup
+        env:
+          DATA_REPO_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+        run: |
+          if [ -z "$DATA_REPO_TOKEN" ]; then
+            echo "::error::Missing secret DATA_REPO_TOKEN - see README.md, 'Setup'."
+            exit 1
+          fi
+
+      - name: Check out the private data repo
+        id: data
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DATA_REPO }}
+          token: ${{ secrets.DATA_REPO_TOKEN }}
+          path: data-repo
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Run Pulse
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          F5BOT_MARK_SEEN: ${{ vars.F5BOT_MARK_SEEN || 'true' }}
+          # Per-client secrets (SLACK_WEBHOOK_<SLUG>) are looked up by name, so a new client never needs a
+          # workflow edit. GitHub masks every secret value in the logs.
+          PULSE_SECRETS: ${{ toJSON(secrets) }}
+          ONLY_CLIENT: ${{ inputs.client }}
+        run: python run.py --clients-dir data-repo/clients --data-dir data-repo/data ${ONLY_CLIENT:+--client "$ONLY_CLIENT"}
+
+      - name: Save results to the data repo
+        # Save even when one client failed, so the others' results are kept.
+        if: ${{ !cancelled() && steps.data.outcome == 'success' }}
+        working-directory: data-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --staged --quiet; then echo "No changes."; exit 0; fi
+          git commit -m "Pulse run $(date -u +%Y-%m-%dT%H:%MZ)"
+          # Runs are serialised and data files are fully derived, so on the rare conflict our fresh copy wins
+          # ("theirs" = the commit being replayed during a rebase).
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase -X theirs && git push && exit 0
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push results after 5 attempts"
+          exit 1

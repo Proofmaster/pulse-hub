@@ -1,0 +1,50 @@
+{
+  "name": "Acme Invoicing",
+  "active": true,
+  "website": "https://acme-invoicing.example",
+  "description": "online invoicing and payments software for freelancers and small agencies",
+  "audience": "freelancers, consultants and agencies with fewer than 20 people",
+  "tone": "friendly, founder-to-founder, never salesy",
+
+  "brand": {
+    "terms": ["acmeinvoicing", "acme invoicing", "acme-invoicing.example"],
+    "ambiguous_terms": ["acme"],
+    "ambiguous_not_after": ["corp", "corporation", "products", "anvil", "co"],
+    "false_positives": ["acme corp", "looney tunes"],
+    "note": "\"Acme\" on its own is usually the cartoon company or a placeholder name; only count it when invoicing or payments are the topic."
+  },
+
+  "can": ["create and send invoices", "recurring invoices", "multi-currency invoicing", "online card and bank payments",
+          "payment reminders", "expense tracking", "basic time tracking"],
+  "cannot": ["payroll", "inventory management", "full double-entry accounting", "tax filing"],
+  "competitors": ["FreshBooks", "Wave", "Zoho Invoice", "QuickBooks", "Invoice Ninja"],
+  "prompt_rules": ["Questions from accountants about bookkeeping for clients are Ignore unless they ask for invoicing software."],
+  "examples": [
+    {"text": "What do you all use to send invoices? Excel is killing me", "category": "Prime Target"},
+    {"text": "FreshBooks just raised prices again, any cheaper alternatives for a solo designer?", "category": "Prime Target"},
+    {"text": "Acme Invoicing double-charged my client and support is ignoring me", "category": "PR Support"},
+    {"text": "I built a free invoice generator in a weekend, roast it", "category": "Ignore"},
+    {"text": "Wave vs Acme Invoicing vs Zoho for a 3-person agency?", "category": "Monitor"}
+  ],
+
+  "queries": {
+    "brand": ["\"acme invoicing\" site:reddit.com", "\"acme invoicing\" site:quora.com"],
+    "intent": [
+      "site:reddit.com \"invoicing software\" freelancer",
+      "site:reddit.com \"freshbooks alternative\"",
+      "site:reddit.com \"how do you invoice\" clients",
+      "site:quora.com \"best invoicing software\" freelancers"
+    ]
+  },
+
+  "sources": {
+    "web": {"enabled": true, "timelimit": "w", "max_results": 20, "delay_seconds": 2},
+    "serper": {"enabled": false, "tbs": "qdr:w", "min_hours_between_runs": 24,
+               "queries": {"brand": ["\"acme invoicing\" site:reddit.com"], "intent": []}},
+    "google_alerts": {"enabled": false, "feeds": []},
+    "f5bot": {"enabled": true, "keywords": ["acme invoicing", "acmeinvoicing", "freshbooks alternative"]},
+    "linkedin": {"enabled": false, "keyword": "Acme Invoicing", "max_results": 15, "min_hours_between_runs": 24}
+  },
+
+  "slack": {"webhook_secret": "SLACK_WEBHOOK_ACME", "alert_on": ["mention", "Prime Target"]}
+}
