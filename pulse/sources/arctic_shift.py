@@ -13,6 +13,7 @@ Profile:
 Arctic Shift is a free service with no uptime guarantee ("be considerate"): one request per subreddit page,
 a pause between requests, and the source stops for this run on HTTP 429.
 """
+import re
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -57,11 +58,16 @@ def fetch_subreddit(subreddit, after_ts, max_pages=2, delay=1.0):
     return posts
 
 
-def _matches(text, keywords):
+def keyword_pattern(keywords):
+    """Match a keyword at the START of a word: "pdf" finds "PDFs" and "pdf2word", "esign" finds "esignature"
+    but not "design" (a plain substring test let "web design" posts through)."""
     if not keywords:
-        return True
-    low = text.lower()
-    return any(k.lower() in low for k in keywords)
+        return None
+    return re.compile(r"(?<![a-z0-9])(?:" + "|".join(re.escape(k.strip().lower()) for k in keywords) + ")", re.I)
+
+
+def _matches(text, pattern):
+    return pattern is None or bool(pattern.search(text))
 
 
 def post_to_lead(post, client, clock, now_iso, keywords):
@@ -100,7 +106,7 @@ def collect(client, clock, now_iso):
     if not subreddits:
         print("[arctic_shift] no subreddits configured - skipping.")
         return [], []
-    keywords = [k for k in cfg.get("keywords") or [] if k and k.strip()]
+    keywords = keyword_pattern([k for k in cfg.get("keywords") or [] if k and k.strip()])
     now_ts = to_ts(now_iso) or datetime.now(timezone.utc).timestamp()
     after_ts = now_ts - timedelta(hours=float(cfg.get("lookback_hours", 8))).total_seconds()
     max_pages = int(cfg.get("max_pages", 2))

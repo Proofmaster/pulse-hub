@@ -261,3 +261,12 @@ def test_arctic_shift_pages_back_and_stops_on_rate_limit(monkeypatch):
 def test_arctic_shift_without_subreddits_is_skipped():
     c = make_client(sources={"arctic_shift": {"enabled": True}})
     assert arctic_shift.collect(c, clock(), NOW) == ([], [])
+
+
+def test_arctic_shift_keywords_match_word_starts_only():
+    p = arctic_shift.keyword_pattern(["pdf", "esign", "e-sign", "fillable form"])
+    for text in ("Merge two PDFs", "pdf2word?", "need an esignature", "free E-Sign tool", "Fillable forms help"):
+        assert arctic_shift._matches(text, p), text
+    for text in ("I run a web design studio", "redesign my site", "xpdf viewer"):
+        assert not arctic_shift._matches(text, p), text
+    assert arctic_shift._matches("anything", arctic_shift.keyword_pattern([]))
