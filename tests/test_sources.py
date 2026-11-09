@@ -227,7 +227,7 @@ def test_arctic_shift_keeps_matching_posts_with_exact_dates(monkeypatch):
     first, brand = leads[0], leads[1]
     assert first["date_confidence"] == "exact" and first["text"] == "it's 40MB" and first["type"] == "Lead"
     assert first["url"] == "https://www.reddit.com/r/docs/comments/1xa01/slug/" and first["thread_key"] == "reddit:1xa01"
-    assert brand["type"] == "Mention"
+    assert brand["type"] == "Mention"  # kept although "doc" is not at a word start: brand posts always pass
     assert len(clk) == 3  # every kept post is an exact date anchor
     assert [(e["query"], e["raw"], e["results"]) for e in executed] == [("r/docs", 5, 2), ("r/help", 1, 1)]
 

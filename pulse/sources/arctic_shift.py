@@ -79,8 +79,9 @@ def post_to_lead(post, client, clock, now_iso, keywords):
     selftext = (post.get("selftext") or "").strip()
     if selftext in GONE:
         return None  # removed by mods / deleted: nothing to reply to
-    if not _matches(f"{title} {selftext}", keywords):
-        return None
+    is_mention = client.is_mention(f"{title} {selftext}")
+    if not (is_mention or _matches(f"{title} {selftext}", keywords)):
+        return None  # the keyword filter never drops a post that names the brand
     try:
         created = datetime.fromtimestamp(float(post["created_utc"]), timezone.utc)
     except (KeyError, TypeError, ValueError):
@@ -90,7 +91,7 @@ def post_to_lead(post, client, clock, now_iso, keywords):
     url = permalink if permalink.startswith("http") else f"https://www.reddit.com{permalink}"
     text = " ".join(selftext.split())[:1500]
     lead = {
-        "id": 0, "type": "Mention" if client.is_mention(f"{title} {text}") else "Lead",
+        "id": 0, "type": "Mention" if is_mention else "Lead",
         "subreddit": sub, "is_rss": False, "title": title, "url": url, "text": text,
         "post_date": created.isoformat(), "date_confidence": "exact", "date_found": now_iso,
         "serp_query": f"r/{sub}", "source": SOURCE,
