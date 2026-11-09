@@ -38,14 +38,19 @@ for what the client does), **Brand Engagement** (praise), **Monitor** (neutral m
 
 ## Setup (one time)
 
-1. **Data-repo token.** GitHub → Settings → Developer settings → Fine-grained personal access tokens → *Generate new
-   token*. For *Repository access*, choose **Only select repositories → `pulse-hub-data`**. Under *Permissions →
-   Repository permissions*, set **Contents: Read and write**. Copy the token.
+1. **Access to the data repo.** Use either option; the deploy key is preferred because it is scoped to one repo and never expires.
+   - **Deploy key (preferred).** On your computer run `ssh-keygen -t ed25519 -C "pulse-hub" -f pulse_hub_deploy`
+     and press Enter at both passphrase prompts. In **`pulse-hub-data`** → Settings → Deploy keys → *Add deploy key*:
+     paste the contents of `pulse_hub_deploy.pub` and tick **Allow write access**. Then save the *private* file
+     `pulse_hub_deploy` (every line, including the BEGIN/END lines) as the secret `DATA_REPO_SSH_KEY` in this repo.
+   - **Fine-grained token.** GitHub → Settings → Developer settings → Fine-grained personal access tokens → *Generate
+     new token*. Choose **Only select repositories → `pulse-hub-data`**, then **Contents: Read and write**. Save it as
+     the secret `DATA_REPO_TOKEN`.
 2. In **this** repo: Settings → Secrets and variables → Actions → *New repository secret*:
 
    | Secret | Needed? | What |
    |---|---|---|
-   | `DATA_REPO_TOKEN` | **required** | the token from step 1 |
+   | `DATA_REPO_SSH_KEY` or `DATA_REPO_TOKEN` | **required** (one of them) | from step 1 |
    | `GEMINI_API_KEY` | **required** | free at aistudio.google.com |
    | `GROQ_API_KEY`, `OPENROUTER_API_KEY` | recommended | free fallbacks when Gemini's quota runs out |
    | `SLACK_WEBHOOK_<SLUG>` | per client | e.g. `SLACK_WEBHOOK_ACME`; no secret = no alerts for that client |

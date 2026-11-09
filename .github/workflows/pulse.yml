@@ -24,20 +24,31 @@ jobs:
     timeout-minutes: 45
     env:
       DATA_REPO: ${{ vars.DATA_REPO || 'Proofmaster/pulse-hub-data' }}
+      # Access to the data repo: a deploy key (DATA_REPO_SSH_KEY, preferred) or a fine-grained token (DATA_REPO_TOKEN).
+      HAS_DATA_SSH_KEY: ${{ secrets.DATA_REPO_SSH_KEY != '' }}
+      HAS_DATA_TOKEN: ${{ secrets.DATA_REPO_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Check setup
-        env:
-          DATA_REPO_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
         run: |
-          if [ -z "$DATA_REPO_TOKEN" ]; then
-            echo "::error::Missing secret DATA_REPO_TOKEN - see README.md, 'Setup'."
+          if [ "$HAS_DATA_SSH_KEY" != "true" ] && [ "$HAS_DATA_TOKEN" != "true" ]; then
+            echo "::error::Add the secret DATA_REPO_SSH_KEY (deploy key) or DATA_REPO_TOKEN - see README.md, 'Setup'."
             exit 1
           fi
 
-      - name: Check out the private data repo
-        id: data
+      - name: Check out the private data repo (deploy key)
+        id: data_ssh
+        if: env.HAS_DATA_SSH_KEY == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DATA_REPO }}
+          ssh-key: ${{ secrets.DATA_REPO_SSH_KEY }}
+          path: data-repo
+
+      - name: Check out the private data repo (token)
+        id: data_token
+        if: env.HAS_DATA_SSH_KEY != 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.DATA_REPO }}
@@ -70,7 +81,7 @@ jobs:
 
       - name: Save results to the data repo
         # Save even when one client failed, so the others' results are kept.
-        if: ${{ !cancelled() && steps.data.outcome == 'success' }}
+        if: ${{ !cancelled() && (steps.data_ssh.outcome == 'success' || steps.data_token.outcome == 'success') }}
         working-directory: data-repo
         run: |
           git config user.name "github-actions[bot]"
