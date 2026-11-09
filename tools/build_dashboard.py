@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pulse import store  # noqa: E402
+from pulse.classifier import render_client_prompt  # noqa: E402
 from pulse.client import load_clients  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,6 +51,8 @@ def bundle(clients_dir, data_dir, data_repo=""):
         r = json.loads(path.read_text(encoding="utf-8"))
         out["clients"].append({
             "slug": c.slug, "name": c.name, "last_updated": r.get("last_updated"),
+            # for dashboards that re-classify in the browser (e.g. OmniScan) and highlight the brand
+            "prompt": render_client_prompt(c), "brand_terms": c.brand_terms + c.ambiguous_terms,
             "source_health": r.get("source_health") or {}, "query_stats": r.get("query_stats") or {},
             "brand_alerts": [slim(x, 700) for x in r.get("brand_alerts", [])],
             "hot_leads": [slim(x, 700) for x in r.get("hot_leads", [])],

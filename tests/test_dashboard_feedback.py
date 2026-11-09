@@ -90,6 +90,8 @@ def test_dashboard_bundle_round_trips_and_needs_the_passphrase(tmp_path):
     assert "Prime Target" not in (out / "data.enc.json").read_text()  # nothing readable without the key
     d = build_dashboard.decrypt(env_, "a long test passphrase")
     assert d["data_repo"] == "owner/data-repo" and [c["slug"] for c in d["clients"]] == ["tinydoc"]
+    assert "{{POSTS}}" in d["clients"][0]["prompt"] and "Tinydoc CAN" in d["clients"][0]["prompt"]
+    assert d["clients"][0]["brand_terms"] == ["tinydoc", "tiny doc"]
     item = d["clients"][0]["archive"][0]
     assert len(item["text"]) == 280 and "slack_only_field" not in item
     with pytest.raises(Exception):
