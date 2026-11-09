@@ -106,13 +106,23 @@ def source_health(prev_health, executed, now_iso):
         by_source.setdefault(ex["source"], []).append(ex)
     for name, rows in by_source.items():
         failed = [r for r in rows if r.get("error")]
-        health[name] = {"last_run": now_iso, "queries": len(rows), "failed": len(failed),
-                        "results": sum(r["results"] for r in rows),
-                        "status": "down" if failed and len(failed) == len(rows) else ("degraded" if failed else "ok")}
+        results = sum(r["results"] for r in rows)
+        raw = sum(r.get("raw", r["results"]) for r in rows)
+        if failed and len(failed) == len(rows):
+            status, why = "down", f"failed on every query: {failed[-1]['error'][:200]}"
+        elif rows and raw == 0:
+            status, why = "empty", "returned nothing for every query (engines may be blocking this server)"
+        elif rows and results == 0:
+            status, why = "filtered", f"returned {raw} rows but none were Reddit threads or Quora questions"
+        else:
+            status, why = ("degraded" if failed else "ok"), ""
+        health[name] = {"last_run": now_iso, "queries": len(rows), "failed": len(failed), "raw": raw,
+                        "results": results, "status": status}
         if failed:
             health[name]["last_error"] = failed[-1]["error"]
-        if health[name]["status"] == "down":
-            print(f"::warning::source '{name}' failed on every query: {failed[-1]['error'][:200]}")
+        if why:
+            health[name]["note"] = why
+            print(f"::warning::source '{name}' {why}")
     return health
 
 

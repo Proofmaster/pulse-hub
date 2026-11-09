@@ -279,3 +279,12 @@ def test_a_dead_source_is_flagged_not_mistaken_for_a_quiet_day(env, client, monk
     out = json.loads(path.read_text())
     assert out["source_health"]["web"]["status"] == "down" and "403" in out["source_health"]["web"]["last_error"]
     assert out["query_stats"][f"web|{BRAND_Q}"]["errors"] == 1 and out["query_stats"][f"web|{BRAND_Q}"]["runs"] == 0
+
+
+def test_empty_and_filtered_sources_are_flagged():
+    h = pipeline.source_health({}, [{"source": "web", "kind": "intent", "query": "q", "results": 0, "raw": 0}], "t")
+    assert h["web"]["status"] == "empty"
+    h = pipeline.source_health({}, [{"source": "web", "kind": "intent", "query": "q", "results": 0, "raw": 5}], "t")
+    assert h["web"]["status"] == "filtered" and "5 rows" in h["web"]["note"]
+    h = pipeline.source_health({}, [{"source": "web", "kind": "intent", "query": "q", "results": 2, "raw": 5}], "t")
+    assert h["web"]["status"] == "ok" and "note" not in h["web"]

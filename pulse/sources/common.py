@@ -52,7 +52,8 @@ def run_queries(queries_by_kind, fetch, to_lead, source, delay=0.0, stop_on=()):
     """Run every query, turn rows into leads, de-dupe within the source.
 
     fetch(query) -> rows; to_lead(row, query, kind, position) -> lead | None.
-    Returns (leads, executed) where executed = [{"source", "kind", "query", "results", ["error"]}].
+    Returns (leads, executed) where executed = [{"source", "kind", "query", "results", "raw", ["error"]}]
+    (`raw` = rows the source returned, `results` = rows that were Reddit threads / Quora questions).
     """
     leads, executed, seen, first = [], [], set(), True
     for kind in ("brand", "intent"):
@@ -70,10 +71,11 @@ def run_queries(queries_by_kind, fetch, to_lead, source, delay=0.0, stop_on=()):
                 executed.append({"source": source, "kind": kind, "query": query, "results": 0,
                                  "error": f"{type(e).__name__}: {e}"[:300]})
                 continue
-            count = 0
+            count, dropped = 0, []
             for position, row in enumerate(rows, start=1):
                 lead = to_lead(row, query, kind, position)
                 if lead is None:
+                    dropped.append(_host_of(row))
                     continue
                 k = key_of(lead)
                 if k in seen:
@@ -81,5 +83,16 @@ def run_queries(queries_by_kind, fetch, to_lead, source, delay=0.0, stop_on=()):
                 seen.add(k)
                 count += 1
                 leads.append(lead)
-            executed.append({"source": source, "kind": kind, "query": query, "results": count})
+            executed.append({"source": source, "kind": kind, "query": query, "results": count, "raw": len(rows)})
+            note = f" (dropped non-thread pages: {', '.join(sorted(set(dropped))[:4])})" if dropped and not count else ""
+            print(f"[{source}] {query[:60]!r}: {len(rows)} rows, {count} kept{note}")
     return leads, executed
+
+
+def _host_of(row):
+    from urllib.parse import urlparse
+    url = row.get("href") or row.get("link") or row.get("url") or ""
+    try:
+        return urlparse(url).netloc or "?"
+    except Exception:  # noqa: BLE001
+        return "?"

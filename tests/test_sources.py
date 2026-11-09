@@ -32,7 +32,7 @@ def test_web_collect_keeps_reddit_and_quora_only_and_cleans_snippets(client, mon
     assert reddit["type"] == "Mention" and reddit["text"] == "Is tinydoc safe?" and "serp_snippet_raw" in reddit
     assert reddit["subreddit"] == "docs" and reddit["source"] == "web"
     assert quora["type"] == "Lead" and quora["subreddit"] == "Quora" and quora["date_confidence"] == "unknown"
-    assert [(e["kind"], e["results"]) for e in executed] == [("brand", 1), ("intent", 1)]
+    assert [(e["kind"], e["raw"], e["results"]) for e in executed] == [("brand", 2, 1), ("intent", 3, 1)]
 
 
 def test_one_failing_query_does_not_stop_the_others(client, monkeypatch):
@@ -172,3 +172,25 @@ def test_ddgs_no_results_is_empty_but_engine_failure_is_an_error(monkeypatch):
     import pytest
     with pytest.raises(DDGSException):
         web.search("q")
+
+
+def test_web_search_never_uses_ddgs_auto_backend(monkeypatch):
+    import ddgs
+    seen = {}
+
+    class Fake:
+        def text(self, query, **kw):
+            seen.update(kw)
+            return []
+    monkeypatch.setattr(ddgs, "DDGS", lambda: Fake())
+    web.search("q")
+    assert seen["backend"] == web.DEFAULT_BACKEND and "wikipedia" not in seen["backend"]
+    web.search("q", backend="brave")
+    assert seen["backend"] == "brave"
+
+
+def test_per_query_log_explains_dropped_rows(capsys):
+    rows = [{"href": "https://en.wikipedia.org/wiki/PDF"}, {"href": "https://grokipedia.com/page/PDF"}]
+    common.run_queries({"intent": ["q"]}, lambda q: rows, lambda *a: None, "web")
+    out = capsys.readouterr().out
+    assert "2 rows, 0 kept" in out and "en.wikipedia.org" in out
