@@ -26,9 +26,9 @@ from pulse.client import load_clients  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 ITERATIONS = 310_000
 LEAD_FIELDS = ("title", "url", "text", "subreddit", "subreddit_name", "platform", "type", "source", "post_date",
-               "date_confidence", "date_found", "action_category", "posture", "reply_angle", "sentiment", "ai_status",
+               "date_confidence", "date_found", "action_category", "grade", "posture", "reply_angle", "sentiment", "ai_status",
                "thread_key", "mention_key", "serp_query", "num_comments", "author", "brand_unverified",
-               "human_verdict", "human_category", "mention_kind", "is_f5bot")
+               "human_verdict", "human_category", "mention_kind", "is_f5bot", "is_rss")
 
 
 def slim(lead, text_len):

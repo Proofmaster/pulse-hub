@@ -81,7 +81,7 @@ def test_dashboard_bundle_round_trips_and_needs_the_passphrase(tmp_path):
     (clients / "nodata.json").write_text(json.dumps({**TINYDOC, "name": "No data yet"}))
     res = anchored_results()
     res["archive"] = [{"title": "T", "url": "https://www.reddit.com/r/a/comments/1abc/t/", "text": "x" * 1000,
-                       "action_category": "Prime Target", "slack_only_field": 1}]
+                       "action_category": "Prime Target", "grade": "High", "slack_only_field": 1}]
     store.save(data / "tinydoc" / "results.json", res)
     out = tmp_path / "site"
     build_dashboard.build(clients, data, out, "a long test passphrase", "owner/data-repo", iterations=1000)
@@ -94,6 +94,7 @@ def test_dashboard_bundle_round_trips_and_needs_the_passphrase(tmp_path):
     assert d["clients"][0]["brand_terms"] == ["tinydoc", "tiny doc"]
     item = d["clients"][0]["archive"][0]
     assert len(item["text"]) == 280 and "slack_only_field" not in item
+    assert item["action_category"] == "Prime Target" and item["grade"] == "High"  # classic dashboard filters on grade
     with pytest.raises(Exception):
         build_dashboard.decrypt(env_, "wrong passphrase")
     with pytest.raises(SystemExit):
