@@ -288,3 +288,20 @@ def test_empty_and_filtered_sources_are_flagged():
     assert h["web"]["status"] == "filtered" and "5 rows" in h["web"]["note"]
     h = pipeline.source_health({}, [{"source": "web", "kind": "intent", "query": "q", "results": 2, "raw": 5}], "t")
     assert h["web"]["status"] == "ok" and "note" not in h["web"]
+
+
+def test_arctic_shift_record_wins_over_a_search_snippet_for_the_same_thread(env, monkeypatch):
+    path, delivered, install = env
+    from pulse.sources import arctic_shift
+    tid = fresh_id(13)
+    c = make_client(sources={**TINYDOC["sources"], "arctic_shift": {"enabled": True, "subreddits": ["docs"]}})
+    full = {"id": tid, "title": "Shrink a doc?", "selftext": "Full post text here", "subreddit": "docs",
+            "created_utc": __import__("time").time() - 600, "permalink": f"/r/docs/comments/{tid}/x/"}
+    monkeypatch.setattr(arctic_shift, "fetch_subreddit", lambda *a: [full])
+    install({INTENT_Q: [row(tid, "Shrink a doc?", "snippet...")]}, [("fake", ai_by_title({"Shrink a doc?": "Prime Target"}))])
+    pipeline.run_client(c, path)
+    out = json.loads(path.read_text())
+    lead = out["hot_leads"][0]
+    assert len(out["hot_leads"]) == 1 and lead["source"] == "arctic_shift" and lead["text"] == "Full post text here"
+    assert lead["date_confidence"] == "exact"
+    assert out["query_stats"]["arctic_shift|r/docs"]["new_qualified"] == 1

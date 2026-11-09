@@ -11,7 +11,7 @@ from pathlib import Path
 from .text import BrandMatcher
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
-SOURCE_NAMES = ("web", "serper", "google_alerts", "f5bot", "linkedin")
+SOURCE_NAMES = ("arctic_shift", "web", "serper", "google_alerts", "f5bot", "linkedin")
 ALERT_DEFAULT = ["mention", "Prime Target"]
 
 

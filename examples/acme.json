@@ -38,7 +38,9 @@
   },
 
   "sources": {
-    "web": {"enabled": true, "timelimit": "w", "max_results": 20, "delay_seconds": 2},
+    "arctic_shift": {"enabled": true, "subreddits": ["freelance", "smallbusiness", "Bookkeeping", "consulting", "agency"],
+                     "keywords": ["invoice", "invoicing", "billing", "freshbooks", "get paid"], "lookback_hours": 8},
+    "web": {"enabled": false, "timelimit": "w", "max_results": 20, "delay_seconds": 2},
     "serper": {"enabled": false, "tbs": "qdr:w", "min_hours_between_runs": 24,
                "queries": {"brand": ["\"acme invoicing\" site:reddit.com"], "intent": []}},
     "google_alerts": {"enabled": false, "feeds": []},

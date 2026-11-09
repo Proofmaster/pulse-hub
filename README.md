@@ -7,7 +7,7 @@ do, keywords, sources). Pulse then searches Reddit and Quora for:
 
 It classifies each hit with free-tier AI, sends Slack alerts and keeps a per-client history for the dashboard.
 
-Everything runs on free tiers: GitHub Actions, the Gemini / Groq / OpenRouter free models, free web search,
+Everything runs on free tiers: GitHub Actions, the Gemini / Groq / OpenRouter free models, the Arctic Shift Reddit archive,
 F5Bot, Google Alerts, and optionally Serper's free credits and Apify's free monthly credits.
 
 ## Two repos
@@ -27,7 +27,7 @@ guards that.
 every 6h (GitHub Actions)  ->  run.py
   ├─ F5Bot inbox: read once, route each alert to the client(s) whose keywords it contains
   └─ for each active client in pulse-hub-data/clients/:
-       sources: google_alerts · serper · web (free metasearch) · linkedin   (each optional, per profile)
+       sources: arctic_shift · google_alerts · serper · web · linkedin   (each optional, per profile)
        -> clean snippets (drop Google's "related posts" sidebar) -> one record per thread
        -> brand check (is the brand in the *post*, or only in the sidebar?)
        -> classify with the client's own prompt (known threads reuse their old verdict: no AI cost)
@@ -100,13 +100,17 @@ The first run on a new client never floods Slack with history. Only threads it h
 
 | Source | Cost | Notes |
 |---|---|---|
-| `web` | free, no key | the `ddgs` metasearch (DuckDuckGo, Bing, Brave, …); rate-limited, so keep it to about 15 queries per client |
+| `arctic_shift` | free, no key | **new posts from the client's target subreddits**: full text, exact dates. `subreddits`, `keywords` (local filter), `lookback_hours`, `max_pages` |
+| `web` | free, no key | the `ddgs` metasearch. **Blocked from GitHub's servers** (every engine bot-checks data-centre IPs; see the "Search probe" workflow), so only useful for local runs |
 | `google_alerts` | free | Google's own crawl, delivered as RSS; slower (hours) but unlimited |
 | `f5bot` | free | near-real-time Reddit/HN keyword alerts by e-mail; one inbox for all clients |
 | `serper` | 2,500 free credits once | give it its **own short** `queries` list and `min_hours_between_runs` |
 | `linkedin` | Apify free monthly credits | brand mentions only, from the last 48h |
 
 Reddit RSS and the unauthenticated Reddit JSON endpoints are **not** used. Reddit shut both off in 2026.
+
+Run **Actions → Search probe** any time to see which free endpoints answer from GitHub's servers. It uses no
+secrets and writes nothing.
 
 ## What's in `results.json`
 
@@ -126,7 +130,7 @@ Dates carry a `date_confidence`:
 
 ## Moving a client over from the old single-client scraper
 
-1. **Shadow run (now).** Only `DATA_REPO_TOKEN` and the AI keys are set here. The hub runs on the free web search,
+1. **Shadow run (now).** Only `DATA_REPO_TOKEN` and the AI keys are set here. The hub runs on the free Arctic Shift source,
    sends no alerts and leaves the F5Bot inbox alone, while the old system keeps working. Compare results for a few
    days.
 2. **Switch.**

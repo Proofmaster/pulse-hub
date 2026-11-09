@@ -84,15 +84,16 @@ def run_queries(queries_by_kind, fetch, to_lead, source, delay=0.0, stop_on=()):
                 count += 1
                 leads.append(lead)
             executed.append({"source": source, "kind": kind, "query": query, "results": count, "raw": len(rows)})
-            note = f" (dropped non-thread pages: {', '.join(sorted(set(dropped))[:4])})" if dropped and not count else ""
+            hosts = sorted({h for h in dropped if h})
+            note = f" (dropped non-thread pages: {', '.join(hosts[:4])})" if hosts and not count else ""
             print(f"[{source}] {query[:60]!r}: {len(rows)} rows, {count} kept{note}")
     return leads, executed
 
 
 def _host_of(row):
     from urllib.parse import urlparse
-    url = row.get("href") or row.get("link") or row.get("url") or ""
+    url = row.get("href") or row.get("link") or ""
     try:
-        return urlparse(url).netloc or "?"
+        return urlparse(url).netloc if url else ""
     except Exception:  # noqa: BLE001
-        return "?"
+        return ""

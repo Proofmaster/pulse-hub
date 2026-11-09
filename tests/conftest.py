@@ -21,7 +21,7 @@ TINYDOC = {
     "competitors": ["SquashIt"],
     "examples": [{"text": "Best way to shrink a 30MB doc?", "category": "Prime Target"}],
     "queries": {"brand": ["\"tinydoc\" site:reddit.com"], "intent": ["site:reddit.com \"compress doc\""]},
-    "sources": {"web": {"enabled": True, "delay_seconds": 0}, "f5bot": {"enabled": True}},
+    "sources": {"web": {"enabled": True, "delay_seconds": 0}, "f5bot": {"enabled": True}},  # web: mocked in tests
 }
 
 

@@ -194,3 +194,70 @@ def test_per_query_log_explains_dropped_rows(capsys):
     common.run_queries({"intent": ["q"]}, lambda q: rows, lambda *a: None, "web")
     out = capsys.readouterr().out
     assert "2 rows, 0 kept" in out and "en.wikipedia.org" in out
+
+
+# ---------- Arctic Shift ----------
+from pulse.sources import arctic_shift  # noqa: E402
+
+
+def shift_post(pid, title, selftext="", sub="docs", hours_ago=1, **kw):
+    from datetime import datetime, timedelta, timezone
+    ts = (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).timestamp()
+    return {"id": pid, "title": title, "selftext": selftext, "subreddit": sub, "created_utc": ts,
+            "permalink": f"/r/{sub}/comments/{pid}/slug/", "author": "u1", "num_comments": 2, **kw}
+
+
+def test_arctic_shift_keeps_matching_posts_with_exact_dates(monkeypatch):
+    c = make_client(sources={"arctic_shift": {"enabled": True, "subreddits": ["docs", "r/help"],
+                                              "keywords": ["doc"], "delay_seconds": 0}})
+    pages = {
+        "docs": [shift_post("1xa01", "Best way to shrink a doc?", "it's 40MB"),
+                 shift_post("1xa02", "Tinydoc is down?", "", sub="docs"),
+                 shift_post("1xa03", "Cat pictures", "unrelated"),
+                 shift_post("1xa04", "Removed doc post", "[removed]"),
+                 shift_post("1xa05", "Mod removed doc", "x", removed_by_category="moderator")],
+        "help": [shift_post("1xa06", "Merge two doc files", "how?", sub="help")],
+    }
+    asked = []
+    monkeypatch.setattr(arctic_shift, "fetch_subreddit", lambda sub, after, pages_, delay: asked.append(sub) or pages[sub])
+    clk = clock()
+    leads, executed = arctic_shift.collect(c, clk, NOW)
+    assert asked == ["docs", "help"]  # "r/" prefix tolerated
+    assert [x["title"] for x in leads] == ["Best way to shrink a doc?", "Tinydoc is down?", "Merge two doc files"]
+    first, brand = leads[0], leads[1]
+    assert first["date_confidence"] == "exact" and first["text"] == "it's 40MB" and first["type"] == "Lead"
+    assert first["url"] == "https://www.reddit.com/r/docs/comments/1xa01/slug/" and first["thread_key"] == "reddit:1xa01"
+    assert brand["type"] == "Mention"
+    assert len(clk) == 3  # every kept post is an exact date anchor
+    assert [(e["query"], e["raw"], e["results"]) for e in executed] == [("r/docs", 5, 2), ("r/help", 1, 1)]
+
+
+def test_arctic_shift_pages_back_and_stops_on_rate_limit(monkeypatch):
+    calls = []
+
+    class Resp:
+        def __init__(self, status, data=None):
+            self.status_code, self._data, self.headers = status, data, {"X-RateLimit-Reset": "30"}
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise RuntimeError(self.status_code)
+
+        def json(self):
+            return {"data": self._data, "error": None}
+
+    full = [{"id": f"a{i}", "created_utc": 1000 + i} for i in range(100)]
+    responses = [Resp(200, full), Resp(200, [{"id": "z", "created_utc": 5}])]
+    monkeypatch.setattr(arctic_shift.requests, "get",
+                        lambda url, params, headers, timeout: calls.append(params) or responses.pop(0))
+    posts = arctic_shift.fetch_subreddit("docs", 0, max_pages=3, delay=0)
+    assert len(posts) == 101 and calls[1]["before"] == 1000 and calls[0]["limit"] == 100
+    monkeypatch.setattr(arctic_shift.requests, "get", lambda *a, **k: Resp(429))
+    import pytest
+    with pytest.raises(arctic_shift.RateLimited):
+        arctic_shift.fetch_subreddit("docs", 0)
+
+
+def test_arctic_shift_without_subreddits_is_skipped():
+    c = make_client(sources={"arctic_shift": {"enabled": True}})
+    assert arctic_shift.collect(c, clock(), NOW) == ([], [])

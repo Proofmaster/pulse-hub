@@ -9,7 +9,7 @@ from .classifier import classify_items, render_client_prompt
 from .dates import RedditIdClock, is_within_hours, to_ts
 from .leads import build_known_index, dedupe, is_f5bot, is_linkedin, key_of, merge_by_key, reuse_classification
 from .slack import SentLog, dispatch_alerts
-from .sources import google_alerts, linkedin, serper, web
+from .sources import arctic_shift, google_alerts, linkedin, serper, web
 from .text import f5bot_kind
 from .urls import reddit_thread_id
 
@@ -19,7 +19,8 @@ QUALIFIED = ("PR Support", "Prime Target", "Brand Engagement")
 VAULT_GRADES = ("urgent", "high", "medium")
 
 # name -> module with collect(client, clock, now_iso); order = de-dupe priority
-SEARCH_SOURCES = (("google_alerts", google_alerts), ("serper", serper), ("web", web))
+# (arctic_shift first: full post text and exact dates beat a search snippet for the same thread)
+SEARCH_SOURCES = (("arctic_shift", arctic_shift), ("google_alerts", google_alerts), ("serper", serper), ("web", web))
 
 
 def is_fresh(lead, hours=config.FRESH_HOURS):
